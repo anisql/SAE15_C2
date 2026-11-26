@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SAE 15 - Bilan d'étude</title>
+  <style>
+body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f8; color: #2c3e50; }
+header, footer { background: #2c3e50; color: white; text-align: center; padding: 15px; }
+nav { background: #34495e; text-align: center; padding: 12px; }
+nav a { color: white; margin: 0 15px; }
+main { padding: 20px; }
+.carte { width: 100%; height: 75vh; border: 2px solid #2c3e50; }
+.contenu { max-width: 900px; margin: auto; background: white; padding: 25px; line-height: 1.6; }
+h2 { color: #c0392b; }
+.graphique { display: block; max-width: 100%; height: auto; margin: 20px auto; }
+</style>
+</head>
+<body>
+
+<header><h1>SAE 15 – Groupe C2</h1></header>
+<nav><a href="index.html">Carte</a><a href="bilan.html">Bilan d'étude</a></nav>
+
+<main>
+<div class="contenu">
+  <h2>Introduction</h2>
+  <p>Présentez ici le sujet de votre étude et son contexte.</p>
+  <h2>Méthode</h2>
+  <p>Les fichiers ANFR sont lus avec Pandas. Les supports, stations, antennes,
+  émetteurs et fichiers de référence sont reliés grâce à leurs identifiants.</p>
+  <h2>Résultats</h2>
+  <p>Le graphique compare les pourcentages d'azimuts manquants entre le réseau
+  privé et les autres exploitants.</p>
+  <img class="graphique" src="graphique_azimuts_exploitants.png"
+       alt="Graphique des azimuts manquants par catégorie d'exploitant">
+  <p>Le second graphique montre les trois exploitants qui possèdent le plus
+  d'antennes : BOUYGUES TELECOM (155061 antennes), FREE MOBILE (146584 antennes), ORANGE (143196 antennes).</p>
+  <img class="graphique" src="graphique_gros_exploitants.png"
+       alt="Graphique des trois exploitants avec le plus d'antennes">
+  <h2>Conclusion</h2>
+  <p>Présentez ici les observations principales et les limites de l'étude.</p>
+</div>
+</main>
+<footer>SAE 15 – Groupe C2</footer>
+</body>
+</html>

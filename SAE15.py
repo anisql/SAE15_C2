@@ -16,7 +16,7 @@ import webbrowser
 import folium
 import matplotlib.pyplot as plt
 import pandas as pd
-from folium.plugins import MarkerCluster
+from folium.plugins import MarkerCluster, FeatureGroupSubGroup
 
 
 # ---------------------------------------------------------------------------
@@ -25,8 +25,11 @@ from folium.plugins import MarkerCluster
 
 # Le script suppose que le dossier courant est la racine du projet.
 DOSSIER_PROJET = Path.cwd()
-DOSSIER_DATA = DOSSIER_PROJET / "data"
-DOSSIER_REF = DOSSIER_PROJET / "ref"
+DOSSIER_DATA = DOSSIER_PROJET / "data/data"
+DOSSIER_REF = DOSSIER_PROJET / "ref/ref"
+
+# Nombre d'exploitants dans le menu de la carte (les autres vont dans "Autres exploitants")
+NB_EXPL = 8
 
 
 def lire_fichier(nom_fichier, dossier=DOSSIER_DATA, colonnes=None):
@@ -241,6 +244,48 @@ plt.close()
 
 
 # ---------------------------------------------------------------------------
+# 7 bis. Graphique des exploitants qui ont le plus d'antennes
+# ---------------------------------------------------------------------------
+
+def graphique_gros_exploitants(nombre=3):
+    """Fait un graphique avec les exploitants qui ont le plus d'antennes."""
+
+    # Une antenne = une ligne (on enlève les doublons)
+    antennes_uniques = antennes_analyse[["STA_NM_ANFR", "AER_ID", "ADM_LB_NOM"]].drop_duplicates()
+
+    # On compte les antennes de chaque exploitant, du plus grand au plus petit
+    comptes = (
+        antennes_uniques.dropna(subset=["ADM_LB_NOM"])
+        .groupby("ADM_LB_NOM")
+        .size()
+        .sort_values(ascending=False)
+        .head(nombre)
+    )
+
+    # Le graphique est enregistré comme image
+    plt.figure(figsize=(7, 4))
+    plt.bar(comptes.index, comptes.values)
+    plt.title(f"Les {nombre} exploitants avec le plus d'antennes")
+    plt.ylabel("Nombre d'antennes")
+    plt.tight_layout()
+    plt.savefig(DOSSIER_PROJET / "graphique_gros_exploitants.png")
+    plt.close()
+
+    return comptes
+
+
+# On crée le graphique des 3 plus gros exploitants
+gros_exploitants = graphique_gros_exploitants(3)
+print(gros_exploitants)
+
+# On prépare une phrase pour le bilan avec les noms et les nombres d'antennes
+phrase_gros_exploitants = ", ".join(
+    f"{html.escape(str(nom))} ({nombre} antennes)"
+    for nom, nombre in gros_exploitants.items()
+)
+
+
+# ---------------------------------------------------------------------------
 # 8. Création des fenêtres d'information des marqueurs
 # ---------------------------------------------------------------------------
 
@@ -279,42 +324,114 @@ def creer_fenetre(informations):
 
 
 # ---------------------------------------------------------------------------
-# 9. Création de la carte Folium
+# 9. Création de la carte Folium (avec choix des exploitants)
 # ---------------------------------------------------------------------------
 
-carte = folium.Map(location=[47, 1], zoom_start=6, tiles=None)
+# On crée une carte, centrée sur la France
+carte = folium.Map(
+    location=[47, 1],        # Position de départ de la carte
+    zoom_start=6,            # Zoom au départ
+    tiles=None,              # Pas de fond par défaut
+    min_zoom=4,              # Zoom minimum
+)
 
-# On ajoute des fonds de carte que l'utilisateur peut sélectionner.
-folium.TileLayer("OpenStreetMap", name="OpenStreetMap").add_to(carte)
+# On ajoute les fonds de carte sans avoir besoin de compte ni de clé
+
+# 1. Esri : les rues (fond par défaut)
 folium.TileLayer(
-    tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attr="Tiles © Esri",
-    name="Satellite Esri",
-).add_to(carte)
-folium.TileLayer(
-    tiles="https://data.geopf.fr/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-    attr="© IGN",
-    name="IGN Plan",
+    tiles="https://server.arcgisonline.com/ArcGIS/rest/services/"
+          "World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    attr="Tiles © Esri", name="Esri rues", no_wrap=False,
 ).add_to(carte)
 
+# 2. Esri : la vue satellite
+folium.TileLayer(
+    tiles="https://server.arcgisonline.com/ArcGIS/rest/services/"
+          "World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attr="Tiles © Esri", name="Esri satellite", no_wrap=False, show=False,
+).add_to(carte)
+
+# 3. IGN : la carte officielle française
+folium.TileLayer(
+    tiles="https://data.geopf.fr/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0"
+          "&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png"
+          "&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2"
+          "&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    attr="© IGN", name="IGN Plan", no_wrap=False, show=False,
+).add_to(carte)
+
+# 4. OpenTopoMap : le relief
+folium.TileLayer(
+    tiles="https://tile.opentopomap.org/{z}/{x}/{y}.png",
+    attr="© OpenTopoMap, © OpenStreetMap", name="OpenTopoMap",
+    no_wrap=False, show=False,
+).add_to(carte)
+
+# On affiche combien de supports sont sur la carte
 print("Nombre de supports affichés :", len(donnees_carte))
 
 if len(donnees_carte) > 0:
-    groupe_marqueurs = MarkerCluster(name="Supports").add_to(carte)
 
-    # Une boucle ajoute un marqueur pour chaque ligne du tableau.
-    for numero_ligne in range(len(donnees_carte)):
-        support = donnees_carte.iloc[numero_ligne]
-        fenetre = creer_fenetre(support)
+    # La liste : un support et un de ses exploitants par ligne
+    liste = stations_supports[["SUP_ID", "ADM_LB_NOM"]].dropna().drop_duplicates()
 
-        folium.CircleMarker(
-            location=[support["lat"], support["lon"]],
-            radius=5,
-            color="red",
-            fill=True,
-            fill_opacity=0.8,
-            popup=folium.Popup(fenetre, max_width=350),
-        ).add_to(groupe_marqueurs)
+    # Les exploitants qui ont le plus de supports (ceux du menu)
+    top = liste["ADM_LB_NOM"].value_counts().head(NB_EXPL).index.tolist()
+
+    # Fonction qui choisit le groupe d'un support (un seul groupe par support)
+    def choisir_groupe(noms):
+        noms = list(noms)
+
+        # Plusieurs exploitants : le support va dans un groupe à part
+        if len(noms) > 1:
+            return "Plusieurs exploitants"
+
+        # Un seul exploitant : son groupe, ou "Autres exploitants" s'il est petit
+        return noms[0] if noms[0] in top else "Autres exploitants"
+
+    # On calcule le groupe de chaque support
+    groupes = (
+        liste.groupby("SUP_ID")["ADM_LB_NOM"]
+        .apply(choisir_groupe)
+        .rename("groupe")
+        .reset_index()
+    )
+
+    # On crée la fenêtre d'information de chaque support
+    donnees_carte["fenetre"] = donnees_carte.apply(creer_fenetre, axis=1)
+
+    # On ajoute le groupe à chaque support (1 ligne = 1 support = 1 marqueur)
+    carte_df = pd.merge(donnees_carte, groupes, on="SUP_ID", how="left")
+
+    # Les supports sans exploitant trouvé
+    carte_df["groupe"] = carte_df["groupe"].fillna("Exploitant inconnu")
+
+    # Un seul groupe de paquets pour toute la carte (pas de ligne dans le menu)
+    paquets = MarkerCluster(control=False).add_to(carte)
+
+    # L'ordre dans le menu
+    ordre = top + ["Plusieurs exploitants", "Autres exploitants", "Exploitant inconnu"]
+
+    # Pour chaque groupe, on crée une case à cocher dans le menu
+    for nom in ordre:
+        lignes = carte_df[carte_df["groupe"] == nom]
+        if lignes.empty:
+            continue
+
+        # Les marqueurs de ce groupe restent regroupés dans les mêmes paquets
+        sous_groupe = FeatureGroupSubGroup(paquets, name=f"{nom} ({len(lignes)})")
+        sous_groupe.add_to(carte)
+
+        # Un seul marqueur par support, tous avec le même style
+        for ligne in lignes.itertuples():
+            folium.CircleMarker(
+                location=[ligne.lat, ligne.lon],
+                radius=5,
+                color="red",
+                fill=True,
+                fill_opacity=0.8,
+                popup=folium.Popup(ligne.fenetre, max_width=350),
+            ).add_to(sous_groupe)
 
     # Le zoom s'adapte aux limites géographiques des supports retenus.
     carte.fit_bounds([
@@ -322,8 +439,9 @@ if len(donnees_carte) > 0:
         [donnees_carte["lat"].max(), donnees_carte["lon"].max()],
     ])
 
-folium.LayerControl().add_to(carte)
-carte.save(DOSSIER_PROJET / "carte_code05.html")
+# Le menu permet de changer de fond de carte et de choisir les exploitants
+folium.LayerControl(collapsed=False).add_to(carte)
+carte.save(DOSSIER_PROJET / "carte_code.html")
 
 
 # ---------------------------------------------------------------------------
@@ -348,10 +466,11 @@ entete = """
 """
 
 contenu_carte = """
-<iframe class="carte" src="carte_code05.html" title="Carte interactive"></iframe>
+<iframe class="carte" src="carte_code.html" title="Carte interactive"></iframe>
 """
 
-contenu_bilan = """
+# Le f devant les guillemets permet d'insérer la phrase des gros exploitants
+contenu_bilan = f"""
 <div class="contenu">
   <h2>Introduction</h2>
   <p>Présentez ici le sujet de votre étude et son contexte.</p>
@@ -363,6 +482,10 @@ contenu_bilan = """
   privé et les autres exploitants.</p>
   <img class="graphique" src="graphique_azimuts_exploitants.png"
        alt="Graphique des azimuts manquants par catégorie d'exploitant">
+  <p>Le second graphique montre les trois exploitants qui possèdent le plus
+  d'antennes : {phrase_gros_exploitants}.</p>
+  <img class="graphique" src="graphique_gros_exploitants.png"
+       alt="Graphique des trois exploitants avec le plus d'antennes">
   <h2>Conclusion</h2>
   <p>Présentez ici les observations principales et les limites de l'étude.</p>
 </div>
@@ -396,4 +519,4 @@ ecrire_page("bilan.html", "SAE 15 - Bilan d'étude", contenu_bilan)
 # Ouvre la page d'accueil dans le navigateur par défaut.
 webbrowser.open((DOSSIER_PROJET / "index.html").as_uri())
 
-print("Terminé : index.html, bilan.html, carte_code05.html et le graphique ont été créés.")
+print("Terminé : index.html, bilan.html, carte_code.html et les graphiques ont été créés.")

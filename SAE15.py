@@ -469,14 +469,35 @@ contenu_carte = """
 <iframe class="carte" src="carte_code.html" title="Carte interactive"></iframe>
 """
 
-# Le f devant les guillemets permet d'insérer la phrase des gros exploitants
+# Les chiffres utilisés dans la conclusion
+def espaces(n):
+    return f"{int(n):,}".replace(",", " ")      # 155061 devient 155 061
+
+noms = [str(n).title() for n in gros_exploitants.index]   # "BOUYGUES TELECOM" devient "Bouygues Telecom"
+nombres = [int(v) for v in gros_exploitants.values]
+ecart = (nombres[0] / nombres[2] - 1) * 100               # écart entre le 1er et le 3e
+nb_supports = espaces(len(donnees_carte))
+
+# Le f devant les guillemets permet d'insérer les chiffres calculés
 contenu_bilan = f"""
 <div class="contenu">
   <h2>Introduction</h2>
-  <p>Présentez ici le sujet de votre étude et son contexte.</p>
+  <p>L'Agence nationale des fréquences (ANFR) publie les données des installations
+  radioélectriques présentes sur le territoire : les supports qui portent les antennes,
+  les stations installées dessus, leurs antennes et leurs émetteurs. Ces informations
+  sont aussi consultables sur le site Cartoradio.</p>
+  <p>Dans le cadre de la SAÉ15, nous avons exploité ces fichiers avec Python pour deux
+  objectifs : représenter les supports sur une carte interactive, où chaque marqueur
+  donne les informations importantes du support, et analyser les exploitants à partir
+  des antennes.</p>
+  <p>Nous nous sommes posé deux questions : quels exploitants possèdent le plus
+  d'antennes, et les azimuts sont-ils renseignés de la même façon pour le réseau privé
+  et pour les autres exploitants ?</p>
+
   <h2>Méthode</h2>
   <p>Les fichiers ANFR sont lus avec Pandas. Les supports, stations, antennes,
   émetteurs et fichiers de référence sont reliés grâce à leurs identifiants.</p>
+
   <h2>Résultats</h2>
   <p>Le graphique compare les pourcentages d'azimuts manquants entre le réseau
   privé et les autres exploitants.</p>
@@ -486,8 +507,26 @@ contenu_bilan = f"""
   d'antennes : {phrase_gros_exploitants}.</p>
   <img class="graphique" src="graphique_gros_exploitants.png"
        alt="Graphique des trois exploitants avec le plus d'antennes">
+
   <h2>Conclusion</h2>
-  <p>Présentez ici les observations principales et les limites de l'étude.</p>
+  <p>Cette étude montre que {noms[0]}, {noms[1]} et {noms[2]} sont les trois exploitants
+  qui possèdent le plus d'antennes, avec respectivement {espaces(nombres[0])},
+  {espaces(nombres[1])} et {espaces(nombres[2])} antennes. L'écart entre le premier et
+  le troisième est d'environ {ecart:.0f} %, donc ces trois opérateurs ont des parcs
+  d'antennes comparables. La carte interactive affiche {nb_supports} supports et permet
+  de consulter, pour chacun, son adresse, sa hauteur, son propriétaire, ses exploitants,
+  ses antennes et ses systèmes.</p>
+  <p>Pour les azimuts, {taux_prive:.0f} % des antennes du réseau privé n'ont pas
+  d'azimut renseigné, contre {taux_autres:.0f} % pour les autres exploitants. Ce résultat
+  ne prouve pas à lui seul un défaut de déclaration : d'après la description des
+  fichiers ANFR, l'azimut n'est donné que pour les antennes à rayonnement directif, et
+  une antenne omnidirectionnelle n'en a pas. Il faudrait comparer avec le type de
+  rayonnement des antennes pour le confirmer.</p>
+  <p>Cette étude a plusieurs limites. Les graphiques portent sur toute la France, alors
+  que la carte dépend du département choisi. Les données correspondent à un état à une
+  date précise. Le réseau privé est repéré par l'identifiant d'exploitant 2, comme dans
+  le script d'analyse fourni. Enfin, un support peut accueillir plusieurs exploitants, et
+  on compte donc les antennes et non les supports pour comparer les exploitants.</p>
 </div>
 """
 

@@ -566,4 +566,4 @@ ecrire_page("bilan.html", "SAE 15 - Bilan d'étude", contenu_bilan)
 
 # Ouvre le site local dans le navigateur par défaut.
 webbrowser.open((DOSSIER_PROJET / "index.html").as_uri())
-print("Terminé : ouvrez index.html pour voir la carte et le bilan.")
+print("Terminé : ouvrez index.html pour voir la carte et le bilan de la SAE15.")
